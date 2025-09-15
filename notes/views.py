@@ -37,3 +37,19 @@ class NoteDetailAPIView(APIView):
         serializer = NoteSerializer(note, data=request.data)
         if serializer.is_valid():
             note = serializer.save()
+            return Response(NoteSerializer(note).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request,pk):
+        note = self.get_object(pk)
+        serializer = NoteSerializer(note, data=request.data, partial=True)
+        if serializer.is_valid():
+            note = serializer.save()
+            return Response(NoteSerializer(note).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self,request,pk):
+        note = self.get_object(pk)
+        note.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
