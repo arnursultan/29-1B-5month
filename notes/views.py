@@ -4,13 +4,15 @@ from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.decorators import api_view
 
 from .models import Note
 from .serializers import NoteSerializer, NoteListSerializer
+from django.conf import settings
 
 class NoteListCreateAPIView(APIView):
 
-    @method_decorator(cache_page(60))
+    @method_decorator(cache_page(settings.CACHE_TTL))
     def get(self, request):
         search = request.query_params.get("search")
         lite = request.query_params.get("lite") in {"1", "true", "yes"}
@@ -18,7 +20,6 @@ class NoteListCreateAPIView(APIView):
         qs = Note.objects.all()
         if search:
             qs = qs.filter(title__icontains=search)
-
         if lite:
             qs = qs.only("id", "title", "created_at")
 
