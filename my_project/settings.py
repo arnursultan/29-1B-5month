@@ -1,6 +1,6 @@
 from pathlib import Path
-
 from decouple import config, Csv
+from django.conf.global_settings import CACHE_MIDDLEWARE_ALIAS
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -19,7 +19,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
-
     'notes',
 ]
 
@@ -32,6 +31,45 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+if DEBUG:
+    INSTALLED_APPS += ["debug_toolbar"]
+    if "debug_toolbar.middleware.DebugToolbarMiddleware" not in MIDDLEWARE:
+        MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+
+    INTERNAL_IPS = ["127.0.0.1", "localhost", "::1"]
+
+    LOGGING = {
+        'version': 1,
+        "disable_existing_loggers": False,
+        "handlers": {"console": {"class": "logging.StreamHandler"}},
+        "loggers": {
+            "django.db.backends": {
+                "handlers": ["console"],
+                "level": "DEBUG",
+                "propagate": False,
+            }
+        },
+    }
+else:
+    LOGGING = {
+        'version': 1,
+        "disable_existing_loggers": False,
+        "handlers": {"console": {"class": "logging.StreamHandler"}},
+        "root": {"level": "INFO", "handlers": ["console"]},
+    }
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
+    }
+}
+
+CACHE_TTL = 60 * 5
+CACHE_MIDDLEWARE_ALIAS = "default"
+CACHE_MIDDLEWARE_SECONDS = CACHE_TTL
+CACHE_MIDDLEWARE_KEY_PREFIX = "v1"
 
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
