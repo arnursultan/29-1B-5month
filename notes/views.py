@@ -113,3 +113,4 @@ def note_detail(request, pk):
     elif request.method == "DELETE":
         note.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
