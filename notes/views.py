@@ -64,3 +64,52 @@ class NoteDetailAPIView(APIView):
         note = self.get_object(pk)
         note.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET', 'POST'])
+@cache_page(settings.CACHE_TTL)
+def note_list_create(request):
+    if request.method == "GET":
+        search = request.query_params.get("search")
+        lite = request.query_params.get("lite") in {"1", "true", "yes"}
+
+        qs = Note.objects.all()
+        if search:
+            qs = qs.filter(title__icontains=search)
+        if lite:
+            qs = qs.only("id", "title", "created_at")
+            serializer_class = NoteListSerializer if lite else NoteListSerializer
+            serializer = serializer_class(qs, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == "POST":
+        serializer = NoteSerializer(data=request.data)
+        if serializer.is_valid():
+            note = serializer.save()
+            return Response(NoteSerializer(note).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+def note_detail(request, pk):
+    note = get_object_or_404(Note, pk=pk)
+
+    if request.method == "GET":
+        serializer = NoteSerializer(note)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == "PUT":
+        serializer = NoteSerializer(note, data=request.data)
+        if serializer.is_valid():
+            note = serializer.save()
+            return Response(NoteSerializer(note).data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == "PATCH":
+        serializer = NoteSerializer(note, data=request.data, partial=True)
+        if serializer.is_valid():
+            note = serializer.save()
+            return Response(NoteSerializer(note).data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == "DELETE":
+        note.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
