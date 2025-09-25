@@ -1,116 +1,93 @@
+from django.shortcuts import get_object_or_404
+from rest_framework import viewsets, status, mixins, generics
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from django.shortcuts import get_object_or_404
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.decorators import api_view
+from django.conf import settings
 
 from .models import Note
 from .serializers import NoteSerializer, NoteListSerializer
-from django.conf import settings
 
-class NoteListCreateAPIView(APIView):
+class NoteViewSet(viewsets.ModelViewSet):
+    queryset = Note.objects.all()
+    permission_classes = (IsAuthenticatedOrReadOnly)
 
-    @method_decorator(cache_page(settings.CACHE_TTL))
-    def get(self, request):
-        search = request.query_params.get("search")
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["cretaed_at"]
+    search_fields = ["title", "body"]
+    ordering_fields = ["created_at", "title"]
+    ordering = ["-created_at"]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return NoteListSerializer
+        return NoteSerializer
+
+    def get_queryset(self):
+
+        qs = super().get_queryset()
+        user_lookup = self.kwargs.get("user_pk") or self.kwargs.get("user_id")
+        if user_lookup and hasattr(Note, "author":
+            qs = qs.filter(author_id=user_lookup)
+        return qs
+
+    def perform_create(self, serializer)
+        request = self.request
+        if hasattr(Note, "author") and getattr(request, "user", None):
+            serializer.save(author=request.user)
+        else:
+            serializer.save()
+
+    def destroy(self, request, *args, **kwargs):
+
+        instance = self.get_object()
+        title_len = len(instance.title or "").strip()
+        if title_len < 5 and not request.user.is_staff:
+            return Response(
+                {"detail": "Нельзя удалять заметки с коротким заголовком."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=False, methods=["get"])
+    def recent(self, request):
+
+        qs = self.get_queryset().order_by("-created_at")[:5]
+        page = self.paginate_queryset(qs)
+        serializer = self.get_serializer(page, many=True) if page is not None else self.get_serializer(qs, many=True)
+        return self.get_paginated_response(serializer.data) if page is None else Response(serializer.data)
+
+    @method_decorator(cache_page(getattr(settings, "CACHE_TTL", 0)))
+    def list(self, request, *args, **kwargs):
         lite = request.query_params.get("lite") in {"1", "true", "yes"}
-
-        qs = Note.objects.all()
-        if search:
-            qs = qs.filter(title__icontains=search)
         if lite:
-            qs = qs.only("id", "title", "created_at")
+            self.serializer_class = NoteListSerializer
+        else:
+            self.serializer_class = None
 
-        serializer_class = NoteListSerializer if lite else NoteSerializer
-        serializer = serializer_class(qs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return super().list(request, *args, **kwargs)
 
-    def post(self, request):
-        serializer = NoteSerializer(data=request.data)
-        if serializer.is_valid():
-            note = serializer.save()
-            return Response(NoteSerializer(note).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class NoteListCreateAPIView(generics.ListCreateAPIView):
+    queryset = Note.objects.all()
+    permission_classes = (IsAuthenticatedOrReadOnly, )
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ["title", "body"]
+    ordering_fields = ["created_at", "title"]
+    ordering = ["-created_at"]
 
+    def get_serializer_class(self):
+        lite = self.request.query_params.get("lite") in {"1", "true", "yes"}
+        return NoteListSerializer if lite else NoteSerializer
 
-class NoteDetailAPIView(APIView):
-    def get_object(self, pk):
-        return get_object_or_404(Note, pk=pk)
+    @method_decorator(cache_page(getattr(settings, "CACHE_TTL", 0)))
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
-    def get(self, request, pk):
-        note = self.get_object(pk)
-        serializer = NoteSerializer(note)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def put(self, request, pk):
-        note = self.get_object(pk)
-        serializer = NoteSerializer(note, data=request.data)
-        if serializer.is_valid():
-            note = serializer.save()
-            return Response(NoteSerializer(note).data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def patch(self, request, pk):
-        note = self.get_object(pk)
-        serializer = NoteSerializer(note, data=request.data, partial=True)
-        if serializer.is_valid():
-            note = serializer.save()
-            return Response(NoteSerializer(note).data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        note = self.get_object(pk)
-        note.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-@api_view(['GET', 'POST'])
-@cache_page(settings.CACHE_TTL)
-def note_list_create(request):
-    if request.method == "GET":
-        search = request.query_params.get("search")
-        lite = request.query_params.get("lite") in {"1", "true", "yes"}
-
-        qs = Note.objects.all()
-        if search:
-            qs = qs.filter(title__icontains=search)
-            if lite:
-                qs = qs.only("id", "title", "created_at")
-                serializer_class = NoteListSerializer if lite else NoteListSerializer
-            serializer = serializer_class(qs, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
-    elif request.method == "POST":
-        serializer = NoteSerializer(data=request.data)
-        if serializer.is_valid():
-            note = serializer.save()
-            return Response(NoteSerializer(note).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
-def note_detail(request, pk):
-    note = get_object_or_404(Note, pk=pk)
-
-    if request.method == "GET":
-        serializer = NoteSerializer(note)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
-    elif request.method == "PUT":
-        serializer = NoteSerializer(note, data=request.data)
-        if serializer.is_valid():
-            note = serializer.save()
-            return Response(NoteSerializer(note).data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == "PATCH":
-        serializer = NoteSerializer(note, data=request.data, partial=True)
-        if serializer.is_valid():
-            note = serializer.save()
-            return Response(NoteSerializer(note).data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == "DELETE":
-        note.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
+class NoteRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Note.objects.all()
+    serializer_class = NoteSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
