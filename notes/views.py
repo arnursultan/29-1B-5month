@@ -75,9 +75,9 @@ def note_list_create(request):
         qs = Note.objects.all()
         if search:
             qs = qs.filter(title__icontains=search)
-        if lite:
-            qs = qs.only("id", "title", "created_at")
-            serializer_class = NoteListSerializer if lite else NoteListSerializer
+            if lite:
+                qs = qs.only("id", "title", "created_at")
+                serializer_class = NoteListSerializer if lite else NoteListSerializer
             serializer = serializer_class(qs, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -95,7 +95,7 @@ def note_detail(request, pk):
     if request.method == "GET":
         serializer = NoteSerializer(note)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
+    
     elif request.method == "PUT":
         serializer = NoteSerializer(note, data=request.data)
         if serializer.is_valid():
