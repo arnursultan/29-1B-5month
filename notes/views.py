@@ -14,10 +14,10 @@ from .serializers import NoteSerializer, NoteListSerializer
 
 class NoteViewSet(viewsets.ModelViewSet):
     queryset = Note.objects.all()
-    permission_classes = (IsAuthenticatedOrReadOnly)
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["cretaed_at"]
+    filterset_fields = ["created_at"]
     search_fields = ["title", "body"]
     ordering_fields = ["created_at", "title"]
     ordering = ["-created_at"]
@@ -31,21 +31,20 @@ class NoteViewSet(viewsets.ModelViewSet):
 
         qs = super().get_queryset()
         user_lookup = self.kwargs.get("user_pk") or self.kwargs.get("user_id")
-        if user_lookup and hasattr(Note, "author":
+        if user_lookup and hasattr(Note, "author"):
             qs = qs.filter(author_id=user_lookup)
         return qs
 
-    def perform_create(self, serializer)
+    def perform_create(self, serializer):
         request = self.request
-        if hasattr(Note, "author") and getattr(request, "user", None):
+        if hasattr(Note, "author") and getattr(request, "user", None) and request.user.is_authenticated:
             serializer.save(author=request.user)
         else:
             serializer.save()
 
     def destroy(self, request, *args, **kwargs):
-
         instance = self.get_object()
-        title_len = len(instance.title or "").strip()
+        title_len = len((instance.title or "").strip())
         if title_len < 5 and not request.user.is_staff:
             return Response(
                 {"detail": "Нельзя удалять заметки с коротким заголовком."},
@@ -59,7 +58,7 @@ class NoteViewSet(viewsets.ModelViewSet):
         qs = self.get_queryset().order_by("-created_at")[:5]
         page = self.paginate_queryset(qs)
         serializer = self.get_serializer(page, many=True) if page is not None else self.get_serializer(qs, many=True)
-        return self.get_paginated_response(serializer.data) if page is None else Response(serializer.data)
+        return self.get_paginated_response(serializer.data) if page is not None else Response(serializer.data)
 
     @method_decorator(cache_page(getattr(settings, "CACHE_TTL", 0)))
     def list(self, request, *args, **kwargs):
@@ -68,12 +67,13 @@ class NoteViewSet(viewsets.ModelViewSet):
             self.serializer_class = NoteListSerializer
         else:
             self.serializer_class = None
-
         return super().list(request, *args, **kwargs)
+
+
 
 class NoteListCreateAPIView(generics.ListCreateAPIView):
     queryset = Note.objects.all()
-    permission_classes = (IsAuthenticatedOrReadOnly, )
+    permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ["title", "body"]
     ordering_fields = ["created_at", "title"]
@@ -86,6 +86,7 @@ class NoteListCreateAPIView(generics.ListCreateAPIView):
     @method_decorator(cache_page(getattr(settings, "CACHE_TTL", 0)))
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
+
 
 class NoteRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Note.objects.all()
