@@ -1,0 +1,59 @@
+{
+  "info": { "name": "Notes API (DRF)", "_postman_id": "notes-api", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "item": [
+    {
+      "name": "Auth: Get Token",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "http://localhost:8000/api/auth/token/", "protocol": "http", "host": ["localhost"], "port": "8000", "path": ["api", "auth", "token"] },
+        "body": { "mode": "raw", "raw": "{\"username\":\"admin\",\"password\":\"adminpass\"}" }
+      }
+    },
+    {
+      "name": "Notes: List",
+      "request": { "method": "GET", "url": "http://localhost:8000/api/notes/" }
+    },
+    {
+      "name": "Notes: Create",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Token {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "http://localhost:8000/api/notes/",
+        "body": { "mode": "raw", "raw": "{\"title\":\"First note\",\"body\":\"Hello\"}" }
+      }
+    },
+    {
+      "name": "Notes: Detail",
+      "request": { "method": "GET", "url": "http://localhost:8000/api/notes/1/" }
+    },
+    {
+      "name": "Notes: Update (PATCH)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Token {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "http://localhost:8000/api/notes/1/",
+        "body": { "mode": "raw", "raw": "{\"title\":\"Updated\"}" }
+      }
+    },
+    {
+      "name": "Notes: Delete",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+        "url": "http://localhost:8000/api/notes/1/"
+      }
+    },
+    {
+      "name": "Notes: Recent",
+      "request": { "method": "GET", "url": "http://localhost:8000/api/notes/recent/" }
+    }
+  ],
+  "variable": [{ "key": "token", "value": "" }]
+}

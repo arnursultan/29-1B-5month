@@ -19,6 +19,8 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'rest_framework.authtoken',
+    'drf_spectacular',
+    'drf_spectacular_sidecar',
     'django_filters',
 
     'notes',
@@ -61,7 +63,6 @@ else:
         "root": {"level": "INFO", "handlers": ["console"]},
     }
 
-# --- Кэш ---
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
@@ -97,6 +98,8 @@ REST_FRAMEWORK = {
 
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 ROOT_URLCONF = 'my_project.urls'
@@ -140,3 +143,52 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "API документация",
+    "DESCRIPTION": "Автогенерация OpenAPI 3.0 для вашего Django REST API",
+    "VERSION": "1.0.0",
+
+    "SERVE_INCLUDE_SCHEMA": False,
+
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
+
+    "SWAGGER_UI_SETTINGS": {
+        "persistAuthorization": True,
+        "displayRequestDuration": True,  #
+        "deepLinking": True,
+    },
+    "SECURITY": [{"TokenAuth": []}],
+
+    "COMPONENTS": {
+        "securitySchemes": {
+            "TokenAuth": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "Authorization",
+                "description": "Используй формат: **Token &lt;токен&gt;**",
+            },
+
+        }
+    },
+
+    "SERVERS": [
+        {"url": "http://127.0.0.1:8000", "description": "Local dev"},
+    ],
+
+    "CONTACT": {
+        "name": "API Support",
+        "email": "bad.stack@gmail.com",
+        "url": "https://t.me/ar_nursultan",
+    },
+    "LICENSE": {
+        "name": "MIT",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+
+    "EXCLUDE_PATHS": [
+        r"^/admin/",
+        r"^/api-auth/",
+        r"^/api/auth/token/",
+    ],
+}
